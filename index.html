@@ -39,6 +39,57 @@
     background: var(--paper);
   }
 
+  /* ---------- CURSOR-REACTIVE SPOTLIGHT ---------- */
+  .hero-spotlight {
+    position: absolute; inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .hero-sticky:hover .hero-spotlight { opacity: 1; }
+  @media (hover: none) {
+    .hero-spotlight { display: none; }
+  }
+
+  /* ---------- SCROLL-REVEALED SKILL TAGS ---------- */
+  .skill-tag {
+    position: absolute;
+    z-index: 1;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 16px;
+    background: var(--mint);
+    color: var(--green);
+    border-radius: 30px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+    transition: background 0.25s ease, color 0.25s ease;
+  }
+  .skill-tag .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+  .skill-tag-1 { top: 6%;    left: 4%; }
+  .skill-tag-2 { top: 12%;   right: 5%; }
+  .skill-tag-3 { bottom: 9%; left: 7%; }
+  .skill-tag-4 { bottom: 5%; right: 8%; }
+
+  @media (max-width: 760px) {
+    .skill-tag { font-size: 11.5px; padding: 7px 13px; }
+    .skill-tag-1 { top: 3%; left: 4%; }
+    .skill-tag-2 { top: 9%; right: 4%; }
+    .skill-tag-3, .skill-tag-4 { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skill-tag { transition: none; }
+  }
+
   /* ---------- NAV ---------- */
   .nav {
     position: relative; z-index: 2;
@@ -74,7 +125,7 @@
 
   /* ---------- STAGE ---------- */
   .headline-stage {
-    position: relative; flex: 1;
+    position: relative; z-index: 1; flex: 1;
     display: flex; align-items: center;
     padding: 0 56px;
   }
@@ -95,6 +146,9 @@
     color: var(--green);
     position: relative;
     white-space: nowrap;
+    display: inline-block;
+    transition: transform 0.2s ease-out;
+    will-change: transform;
   }
   .sentence .fade-word { transition: opacity 0.15s linear; }
   .sentence .hero-line {
@@ -112,6 +166,8 @@
   .merged .line-wrap {
     position: relative;
     display: inline-block;
+    transition: transform 0.25s ease-out;
+    will-change: transform;
   }
   .merged .line {
     font-family: 'Glancyr', sans-serif;
@@ -388,7 +444,9 @@
 
 
 <section class="hero-scroll" id="heroScroll">
-  <div class="hero-sticky">
+  <div class="hero-sticky" id="heroSticky">
+
+    <div class="hero-spotlight" id="spotlight" aria-hidden="true"></div>
 
     <nav class="nav">
       <a href="#" class="logo">vivekux</a>
@@ -406,14 +464,19 @@
         <span class="hero-line"><span class="fade-word">people</span></span>
       </p>
 
+      <span class="skill-tag skill-tag-1" id="tag1"><span class="dot"></span>4.5+ Yrs Experience</span>
+      <span class="skill-tag skill-tag-2" id="tag2"><span class="dot"></span>Design Systems</span>
+      <span class="skill-tag skill-tag-3" id="tag3"><span class="dot"></span>0 → 1 Product Design</span>
+      <span class="skill-tag skill-tag-4" id="tag4"><span class="dot"></span>User Research</span>
+
       <div class="merged" id="merged">
-        <div class="line-wrap">
+        <div class="line-wrap" id="mergedLine1">
           <p class="line">Vivek</p>
           <svg class="underline-svg" viewBox="0 0 300 24" preserveAspectRatio="none">
             <path id="underline1" d="M4 14 C 60 20, 240 20, 296 10"/>
           </svg>
         </div>
-        <div class="line-wrap" style="margin-top:4px;">
+        <div class="line-wrap" id="mergedLine2" style="margin-top:4px;">
           <p class="line green">digital experiences</p>
           <svg class="underline-svg" viewBox="0 0 600 24" preserveAspectRatio="none">
             <path id="underline2" d="M4 12 C 150 22, 450 22, 596 8"/>
@@ -535,6 +598,21 @@
   const underline1 = document.getElementById('underline1');
   const underline2 = document.getElementById('underline2');
 
+  const skillTags = [
+    { el: document.getElementById('tag1'), start: 0.00, scrollY: 16, mx: 0, my: 0 },
+    { el: document.getElementById('tag2'), start: 0.06, scrollY: 16, mx: 0, my: 0 },
+    { el: document.getElementById('tag3'), start: 0.12, scrollY: 16, mx: 0, my: 0 },
+    { el: document.getElementById('tag4'), start: 0.18, scrollY: 16, mx: 0, my: 0 },
+  ];
+  const tagFadeInDur = 0.10;
+  const tagHoldUntil = 0.38;
+  const tagFadeOutEnd = 0.5;
+
+  function renderTag(tag) {
+    if (!tag.el) return;
+    tag.el.style.transform = `translate(${tag.mx}px, ${tag.scrollY + tag.my}px)`;
+  }
+
   function onScroll() {
     const rect = heroScroll.getBoundingClientRect();
     const scrollableHeight = heroScroll.offsetHeight - window.innerHeight;
@@ -546,6 +624,18 @@
 
     const phase1b = Math.max(0, Math.min(1, (progress - 0.4) / 0.1));
     sentence.style.opacity = 1 - phase1b;
+
+    // skill tags cascade in as the user starts scrolling, then fade out
+    // together as the headline hands off to the merged big-type state
+    skillTags.forEach(tag => {
+      if (!tag.el) return;
+      const inP = Math.max(0, Math.min(1, (progress - tag.start) / tagFadeInDur));
+      const outP = Math.max(0, Math.min(1, (progress - tagHoldUntil) / (tagFadeOutEnd - tagHoldUntil)));
+      const visible = inP * (1 - outP);
+      tag.el.style.opacity = visible;
+      tag.scrollY = (1 - inP) * 16 + outP * -10;
+      renderTag(tag);
+    });
 
     const phase2 = Math.max(0, Math.min(1, (progress - 0.5) / 0.5));
     merged.style.opacity = phase2;
@@ -560,6 +650,86 @@
 
   window.addEventListener('scroll', onScroll);
   onScroll();
+
+
+// ===== CURSOR-REACTIVE HERO (spotlight, magnetic tags, parallax accents) =====
+
+  const heroSticky = document.getElementById('heroSticky');
+  const spotlight = document.getElementById('spotlight');
+  const wVivek = document.getElementById('w-vivek');
+  const wDigital = document.getElementById('w-digital');
+  const mergedLine1 = document.getElementById('mergedLine1');
+  const mergedLine2 = document.getElementById('mergedLine2');
+
+  let mouseX = null, mouseY = null, tickingMouse = false;
+
+  function updateCursorEffects() {
+    tickingMouse = false;
+    if (mouseX === null || !heroSticky) return;
+    const w = heroSticky.clientWidth;
+    const h = heroSticky.clientHeight;
+
+    // soft radial spotlight following the cursor
+    if (spotlight) {
+      spotlight.style.background =
+        `radial-gradient(500px circle at ${mouseX}px ${mouseY}px, rgba(30,92,70,0.07), rgba(207,227,251,0.10) 45%, transparent 70%)`;
+    }
+
+    // normalized offset from center, -1 to 1
+    const nx = (mouseX / w) * 2 - 1;
+    const ny = (mouseY / h) * 2 - 1;
+
+    // accent words tilt gently opposite the cursor for a subtle depth feel
+    const accentOffset = 6;
+    if (wVivek) wVivek.style.transform = `translate(${-nx * accentOffset}px, ${-ny * (accentOffset * 0.5)}px)`;
+    if (wDigital) wDigital.style.transform = `translate(${-nx * accentOffset}px, ${-ny * (accentOffset * 0.5)}px)`;
+    const mergedOffset = 10;
+    if (mergedLine1) mergedLine1.style.transform = `translate(${-nx * mergedOffset}px, ${-ny * (mergedOffset * 0.4)}px)`;
+    if (mergedLine2) mergedLine2.style.transform = `translate(${-nx * mergedOffset}px, ${-ny * (mergedOffset * 0.4)}px)`;
+
+    // skill tags nudge away from the cursor when it passes near (magnetic effect)
+    const magnetRadius = 160;
+    const magnetStrength = 22;
+    skillTags.forEach(tag => {
+      if (!tag.el) return;
+      const r = tag.el.getBoundingClientRect();
+      const heroRect = heroSticky.getBoundingClientRect();
+      const tagCx = r.left - heroRect.left + r.width / 2;
+      const tagCy = r.top - heroRect.top + r.height / 2;
+      const dx = tagCx - mouseX;
+      const dy = tagCy - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < magnetRadius && dist > 0.01) {
+        const pull = (1 - dist / magnetRadius) * magnetStrength;
+        tag.mx = (dx / dist) * pull;
+        tag.my = (dy / dist) * pull;
+      } else {
+        tag.mx = 0;
+        tag.my = 0;
+      }
+      renderTag(tag);
+    });
+  }
+
+  if (heroSticky) {
+    heroSticky.addEventListener('mousemove', (e) => {
+      const rect = heroSticky.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      if (!tickingMouse) {
+        tickingMouse = true;
+        requestAnimationFrame(updateCursorEffects);
+      }
+    });
+    heroSticky.addEventListener('mouseleave', () => {
+      mouseX = null; mouseY = null;
+      if (wVivek) wVivek.style.transform = '';
+      if (wDigital) wDigital.style.transform = '';
+      if (mergedLine1) mergedLine1.style.transform = '';
+      if (mergedLine2) mergedLine2.style.transform = '';
+      skillTags.forEach(tag => { tag.mx = 0; tag.my = 0; renderTag(tag); });
+    });
+  }
 
 
 // ===== HERO LINE AUTO-FIT (keeps headline to exactly 3 lines on any screen) =====
