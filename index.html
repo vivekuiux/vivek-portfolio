@@ -87,6 +87,8 @@
     letter-spacing: 0px;
     color: var(--ink);
     max-width: 1200px;
+    width: 100%;
+    min-width: 0;
     position: relative;
   }
   .sentence .accent {
@@ -95,6 +97,10 @@
     white-space: nowrap;
   }
   .sentence .fade-word { transition: opacity 0.15s linear; }
+  .sentence .hero-line {
+    display: block;
+    white-space: nowrap;
+  }
 
   .merged {
     position: absolute; inset: 0;
@@ -395,12 +401,9 @@
 
     <div class="headline-stage">
       <p class="sentence" id="sentence">
-        <span class="fade-word">I'm</span>
-        <span class="accent" id="w-vivek">Vivek</span>
-        <span class="fade-word">— Crafting meaningful</span><br>
-        <span class="accent" id="w-digital">digital experiences</span>
-        <span class="fade-word">that help</span><br>
-        <span class="fade-word">people</span>
+        <span class="hero-line"><span class="fade-word">I'm</span> <span class="accent" id="w-vivek">Vivek</span> <span class="fade-word">— Crafting meaningful</span></span>
+        <span class="hero-line"><span class="accent" id="w-digital">digital experiences</span> <span class="fade-word">that help</span></span>
+        <span class="hero-line"><span class="fade-word">people</span></span>
       </p>
 
       <div class="merged" id="merged">
@@ -557,6 +560,31 @@
 
   window.addEventListener('scroll', onScroll);
   onScroll();
+
+
+// ===== HERO LINE AUTO-FIT (keeps headline to exactly 3 lines on any screen) =====
+
+  function fitHeroLines() {
+    const lines = document.querySelectorAll('.sentence .hero-line');
+    lines.forEach(line => { line.style.fontSize = ''; });
+    void sentence.offsetWidth; // force reflow so computed style reflects CSS value
+    lines.forEach(line => {
+      let size = parseFloat(getComputedStyle(line).fontSize);
+      const minSize = 15;
+      line.style.fontSize = size + 'px';
+      while (line.scrollWidth > line.clientWidth && size > minSize) {
+        size -= 0.5;
+        line.style.fontSize = size + 'px';
+      }
+    });
+  }
+
+  window.addEventListener('load', fitHeroLines);
+  window.addEventListener('resize', fitHeroLines);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(fitHeroLines);
+  }
+  fitHeroLines();
 
 
 // ===== WORK SECTION =====
